@@ -1,81 +1,128 @@
-	const express = require("express");
-	const app = express();
-	require("dotenv").config();
-	const stripe = require("stripe")(process.env.STRIPE_SECRET_TEST);
-	const bodyParser = require("body-parser");
-	const cors = require("cors");
+const express = require("express");
+const app = express();
+require("dotenv").config();
+const stripe = require("stripe")(process.env.STRIPE_SECRET_TEST);
+const bodyParser = require("body-parser");
+const cors = require("cors");
+const AdminBro = require("admin-bro");
+const AdminBroExpress = require("@admin-bro/express");
+const AdminBroMongoose = require("@admin-bro/mongoose");
+const mongoose = require("mongoose");
+const expressFormidable = require("express-formidable");
 
-	app.use(bodyParser.urlencoded({ extended: true }));
-	app.use(bodyParser.json());
+// Connect to MongoDB
+mongoose.connect(process.env.MONGO_URL, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
 
-	app.use(cors());
+// Define product schema
+const productSchema = new mongoose.Schema({
+  name: String,
+  price: Number,
+});
 
-	const products = [
-	{
-		id: 1,
-		name: "Dress",
-		price: 10.0,
-	},
-	{
-		id: 2,
-		name: "Shoes",
-		price: 12.0,
-	},
-	{
-		id: 3,
-		name: "T-shirt",
-		price: 14.0,
-	},
-	];
+const Product = mongoose.model("Product", productSchema);
 
-	app.get("/products", (req, res) => {
-	res.json(products);
-	});
+// Register mongoose adapter with AdminBro
+AdminBro.registerAdapter(AdminBroMongoose);
 
-	app.get("/", (req, res) => {
-	res.json("Hi. I'm JasurBek");
-	});
+// Create instance of AdminBro
+const adminBro = new AdminBro({
+  databases: [mongoose],
+  resources: [
+    {
+      resource: Product,
+      options: {
+        properties: {
+          name: { isVisible: { list: true, filter: true, show: true, edit: true } },
+          price: { isVisible: { list: true, filter: true, show: true, edit: true } },
+        },
+      },
+    },
+  ],
+  rootPath: "/admin",
+});
 
-	// session
+// login password admin panel
+const ADMIN = {
+  email: process.env.ADMIN_EMAIL || "dinara@mail.ru",
+  password: process.env.ADMIN_PASSWORD || "lolittoOffical",
+};
 
-	app.post('/create-checkout-session', async (req, res) => {
-		const { product } = req.body;
-   
-		const session = await stripe.checkout.sessions.create({
-		  payment_method_types: ['card'],
-		  line_items: [
-			{
-			  price_data: {
-				currency: 'usd',
-				product_data: {
-				  name: product.name,
-				},
-				unit_amount: product.price * 100,
-			  },
-			  quantity: 1,
-			},
-		  ],
-		  mode: 'payment',
-		  success_url: 'http://localhost:3000/success',
-		  cancel_url: 'http://localhost:3000/cancel',
-		});
-   
-		res.json({ sessionId: session.id });
-	  });
+// Create an authenticated router for AdminBro
+const adminRouter = AdminBroExpress.buildAuthenticatedRouter(adminBro, {
+  authenticate: async (email, password) => {
+    if (email === ADMIN.email && password === ADMIN.password) {
+      return ADMIN;
+    }
+    return null;
+  },
+  cookiePassword: process.env.ADMIN_COOKIE_PASSWORD || "admincookiepassword",
+});
 
-	  app.post('/payment', async (req, res) => {
-		const { amount, currency, token, product } = req.body;
-   
-		const charge = await stripe.charges.create({
-		  amount: amount * 100,
-		  currency: currency,
-		  source: token,
-		  description: `Payment for ${product.name}`,
-		});
-   
-		res.json({ message: 'Payment successful' });
-	  })
+// Use the admin router
+app.use(adminBro.options.rootPath, adminRouter);
+app.use(expressFormidable());
 
-	app.listen(process.env.PORT || 4000, () => {
-	console.log("Server is listening on port 4000");
-	});
+// Use bodyParser middleware
+app.use(bodyParser.json());
+
+// Define routes for products and payment
+app.get("/products", (req, res) => {
+  Product.find({}, (err, products) => {
+    if (err) {
+      res.status(500).json({ error: "Error retrieving products" });
+    } else {
+      res.json(products);
+    }
+  });
+});
+
+app.post("/create-checkout-session", async (req, res) => {
+  const { cart } = req.body;
+
+  const lineItems = cart.map((product) => ({
+    price_data: {
+      currency: "usd",
+      product_data: {
+        name: product.name,
+      },
+      unit_amount: product.price * 100,
+    },
+    quantity: 1,
+  }));
+
+  const session = await stripe.checkout.sessions.create({
+    payment_method_types: ["card"],
+    line_items: lineItems,
+    mode: "payment",
+    success_url: "http://localhost:3000/success",
+    cancel_url: "http://localhost:3000/cancel",
+  });
+
+  res.json({ sessionId: session.id });
+});
+
+app.post("/payment", async (req, res) => {
+  const { amount, currency, token, product } = req.body;
+
+  try {
+    const charge = await stripe.charges.create({
+      amount: amount * 100,
+      currency: currency,
+      source: token,
+      description: `Payment for ${product.name}`,
+    });
+
+    res.json({ message: "Payment successful" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Payment failed" });
+  }
+});
+
+// Start the server
+app.listen(4000, () => {
+  console.log("Server is listening on port 4000");
+});
