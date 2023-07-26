@@ -15,6 +15,11 @@ mongoose.connect(process.env.MONGO_URL, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
+const db = mongoose.connection;
+db.on("error" , console.error.bind(console , "Mongodbga ulanishda xatolik:") )
+db.once("open" , function (){
+  console.log("Mongodbga ulanildi...")
+})
 
 // Define product schema
 const productSchema = new mongoose.Schema({
@@ -69,16 +74,14 @@ app.use(expressFormidable());
 app.use(bodyParser.json());
 
 // Define routes for products and payment
-app.get("/products", (req, res) => {
-  Product.find({}, (err, products) => {
-    if (err) {
-      res.status(500).json({ error: "Error retrieving products" });
-    } else {
-      res.json(products);
-    }
-  });
+app.get("/products", async (req, res) => {
+  try {
+    const products = await Product.find({});
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ error: "Error retrieving products" });
+  }
 });
-
 app.post("/create-checkout-session", async (req, res) => {
   const { cart } = req.body;
 
