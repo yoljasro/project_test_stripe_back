@@ -10,6 +10,9 @@ const AdminBroMongoose = require("@admin-bro/mongoose");
 const mongoose = require("mongoose");
 const expressFormidable = require("express-formidable");
 
+app.use(cors())
+
+
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URL, {
   useNewUrlParser: true,
@@ -67,10 +70,6 @@ const adminRouter = AdminBroExpress.buildAuthenticatedRouter(adminBro, {
 });
 
 // Use the admin router
-app.use(cors({
-  origin: "http://localhost:5173", // frontendning URL manzili
-  credentials: true // cookie va autentifikatsiyada ruxsat berish uchun
-}));
 app.use(adminBro.options.rootPath, adminRouter);
 app.use(expressFormidable());
  
