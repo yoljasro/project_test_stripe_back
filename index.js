@@ -67,12 +67,12 @@ const adminRouter = AdminBroExpress.buildAuthenticatedRouter(adminBro, {
 });
 
 // Use the admin router
+app.use(cors())
 app.use(adminBro.options.rootPath, adminRouter);
 app.use(expressFormidable());
  
 // Use bodyParser middleware
 app.use(bodyParser.json());
-app.use(cors())
 
 
 // Define routes for products and payment
