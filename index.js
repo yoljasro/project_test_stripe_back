@@ -67,7 +67,10 @@ const adminRouter = AdminBroExpress.buildAuthenticatedRouter(adminBro, {
 });
 
 // Use the admin router
-app.use(cors())
+app.use(cors({
+  origin: "http://localhost:5173", // frontendning URL manzili
+  credentials: true // cookie va autentifikatsiyada ruxsat berish uchun
+}));
 app.use(adminBro.options.rootPath, adminRouter);
 app.use(expressFormidable());
  
