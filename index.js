@@ -10,7 +10,6 @@ const AdminBroMongoose = require("@admin-bro/mongoose");
 const mongoose = require("mongoose");
 const expressFormidable = require("express-formidable");
 
-app.use(cors())
 
 
 // Connect to MongoDB
@@ -70,6 +69,7 @@ const adminRouter = AdminBroExpress.buildAuthenticatedRouter(adminBro, {
 });
 
 // Use the admin router
+app.use(cors())
 app.use(adminBro.options.rootPath, adminRouter);
 app.use(expressFormidable());
  
