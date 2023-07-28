@@ -2,7 +2,7 @@ const express = require("express");
 const app = express();
 require("dotenv").config();
 const stripe = require("stripe")(process.env.STRIPE_SECRET_TEST);
-const bodyParser = require("body-parser");
+const { json } = require("body-parser");
 const cors = require("cors");
 const AdminBro = require("admin-bro");
 const AdminBroExpress = require("@admin-bro/express");
@@ -11,6 +11,7 @@ const mongoose = require("mongoose");
 const expressFormidable = require("express-formidable");
 
 app.use(cors())
+app.use(json())
 
 
 
